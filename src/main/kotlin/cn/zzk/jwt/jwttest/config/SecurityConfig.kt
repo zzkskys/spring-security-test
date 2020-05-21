@@ -5,7 +5,9 @@ import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
-import org.springframework.security.authentication.ProviderManager
+import org.springframework.context.annotation.Configuration
+import org.springframework.core.annotation.Order
+import org.springframework.security.config.annotation.SecurityConfigurerAdapter
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -17,7 +19,9 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder
 import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.AuthenticationEntryPoint
+import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.access.AccessDeniedHandler
 import org.springframework.stereotype.Service
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -44,11 +48,7 @@ class SecurityConfig(
     private lateinit var userLoginService: UserLoginService
 
     @Autowired
-    private lateinit var mobileProvider: MobileAuthenticationProvider
-
-    @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
-
 
     override fun configure(http: HttpSecurity) {
         http
@@ -73,15 +73,6 @@ class SecurityConfig(
                 .logout { logout ->
                     logout.logoutSuccessHandler(simpleLogoutHandler)
                 }
-
-
-        // mobile 登录认证
-        val filter = MobileLoginAuthenticationFilter("/mobile/login", "mobile")
-        filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler)
-        filter.setAuthenticationFailureHandler(authenticationFailureHandler)
-        filter.setAuthenticationManager(ProviderManager(listOf(mobileProvider)))
-        http
-                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
     }
 
 
@@ -113,17 +104,74 @@ class SecurityConfig(
         source.registerCorsConfiguration("/**", configuration)
         return source
     }
-}
 
-@Service
-class UserLoginService(
-        private val userRepo: UserRepo
-) : UserDetailsService {
+    @Service
+    class UserLoginService(
+            private val userRepo: UserRepo
+    ) : UserDetailsService {
 
-    private val log = LoggerFactory.getLogger(UserLoginService::class.java)
+        private val log = LoggerFactory.getLogger(UserLoginService::class.java)
 
-    override fun loadUserByUsername(username: String): UserDetails? {
-        log.info("通过 UserLoginService 提供认证身份, username : $username")
-        return userRepo.findByName(username)
+        override fun loadUserByUsername(username: String): UserDetails? {
+            log.info("通过 UserLoginService 提供认证身份, username : $username")
+            return userRepo.findByName(username)
+        }
     }
 }
+
+
+@Configuration
+@Order(10)
+class MobileSecurityConfig : WebSecurityConfigurerAdapter() {
+
+    @Autowired
+    lateinit var restAuthenticationSuccessHandler: RestAuthenticationSuccessHandler
+
+    @Autowired
+    lateinit var authenticationFailureHandler: RestAuthenticationFailureHandler
+
+    @Autowired
+    lateinit var restAuthenticationEntryPoint: AuthenticationEntryPoint
+
+    @Autowired
+    lateinit var restAccessDeniedHandler: AccessDeniedHandler
+
+    @Autowired
+    lateinit var mobileProvider: MobileAuthenticationProvider
+
+    @Autowired
+    lateinit var logoutHandler: RestLogoutHandler
+
+
+    override fun configure(http: HttpSecurity) {
+        // mobile 登录认证
+        http
+                .csrf().disable()
+                .authenticationProvider(mobileProvider)
+                .formLogin { formLogin ->
+                    formLogin.loginProcessingUrl("/mobile/login")
+                    formLogin.usernameParameter("mobile")
+                    formLogin.successHandler(restAuthenticationSuccessHandler)
+                    formLogin.failureHandler(authenticationFailureHandler)
+                }
+                .exceptionHandling { exceptionHandling ->
+                    exceptionHandling.authenticationEntryPoint(restAuthenticationEntryPoint)
+                    exceptionHandling.accessDeniedHandler(restAccessDeniedHandler)
+                }
+                .logout { logout ->
+                    logout.logoutSuccessHandler(logoutHandler)
+                }
+                .authorizeRequests {
+                    it.antMatchers("/public/**", "/mobile/login").permitAll()
+                    it.antMatchers("/**").permitAll()
+                }
+    }
+
+//    override fun configure(auth: AuthenticationManagerBuilder) {
+//        auth
+//                .authenticationProvider(mobileProvider)
+//    }
+}
+
+
+
