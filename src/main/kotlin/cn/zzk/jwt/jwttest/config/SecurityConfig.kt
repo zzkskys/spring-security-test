@@ -2,8 +2,9 @@ package cn.zzk.jwt.jwttest.config
 
 import cn.zzk.jwt.jwttest.config.authentication.*
 import cn.zzk.jwt.jwttest.domain.UserRepo
+import org.slf4j.LoggerFactory
+import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
-import org.springframework.context.annotation.Primary
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -12,7 +13,10 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
+import org.springframework.security.crypto.password.DelegatingPasswordEncoder
+import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.stereotype.Service
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -32,9 +36,17 @@ class SecurityConfig(
         private val restAuthenticationSuccessHandler: RestAuthenticationSuccessHandler,
         private val authenticationFailureHandler: RestAuthenticationFailureHandler,
         private val simpleLogoutHandler: RestLogoutHandler,
-        private val restAccessDeniedHandler: RestAccessDeniedHandler,
-        private val userDetailsService: UserDetailsService
+        private val restAccessDeniedHandler: RestAccessDeniedHandler
 ) : WebSecurityConfigurerAdapter() {
+
+    @Autowired
+    private lateinit var mobileLoginService: MobileLoginService
+
+    @Autowired
+    private lateinit var mobileProvider: MobileAuthenticationProvider
+
+    @Autowired
+    private lateinit var passwordEncoder: PasswordEncoder
 
 
     override fun configure(http: HttpSecurity) {
@@ -53,7 +65,7 @@ class SecurityConfig(
                     it.antMatchers("/**").permitAll()
                 }
                 .formLogin { formLogin ->
-                    formLogin.loginPage("/login")
+                    formLogin.loginProcessingUrl("/login")
                     formLogin.successHandler(restAuthenticationSuccessHandler)
                     formLogin.failureHandler(authenticationFailureHandler)
                 }
@@ -62,18 +74,23 @@ class SecurityConfig(
                 }
     }
 
+
     @Bean
     fun passwordEncoder(): PasswordEncoder {
-        return PasswordEncoderFactories
-                .createDelegatingPasswordEncoder()
+        val encoder: DelegatingPasswordEncoder = PasswordEncoderFactories
+                .createDelegatingPasswordEncoder() as DelegatingPasswordEncoder
+        encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
+        return encoder
     }
 
-    @Throws(Exception::class)
+
     override fun configure(auth: AuthenticationManagerBuilder) {
         auth
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder())
+                .authenticationProvider(mobileProvider)
+                .userDetailsService(mobileLoginService)
+                .passwordEncoder(passwordEncoder)
     }
+
 
     @Bean
     fun corsConfigurationSource(): CorsConfigurationSource {
@@ -90,11 +107,14 @@ class SecurityConfig(
 }
 
 @Service
-@Primary
 class UserLoginService(
         private val userRepo: UserRepo
 ) : UserDetailsService {
+
+    private val log = LoggerFactory.getLogger(UserLoginService::class.java)
+
     override fun loadUserByUsername(username: String): UserDetails {
+        log.info("通过 UserLoginService 提供认证身份, username : $username")
         val user = userRepo.findByName(username)
         if (user != null) {
             return user
