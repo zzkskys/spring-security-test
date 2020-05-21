@@ -5,6 +5,7 @@ import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
+import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -40,7 +41,7 @@ class SecurityConfig(
 ) : WebSecurityConfigurerAdapter() {
 
     @Autowired
-    private lateinit var mobileLoginService: MobileLoginService
+    private lateinit var userLoginService: UserLoginService
 
     @Autowired
     private lateinit var mobileProvider: MobileAuthenticationProvider
@@ -72,6 +73,15 @@ class SecurityConfig(
                 .logout { logout ->
                     logout.logoutSuccessHandler(simpleLogoutHandler)
                 }
+
+
+        // mobile 登录认证
+        val filter = MobileLoginAuthenticationFilter("/mobile/login", "mobile")
+        filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler)
+        filter.setAuthenticationFailureHandler(authenticationFailureHandler)
+        filter.setAuthenticationManager(ProviderManager(listOf(mobileProvider)))
+        http
+                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
     }
 
 
@@ -86,8 +96,7 @@ class SecurityConfig(
 
     override fun configure(auth: AuthenticationManagerBuilder) {
         auth
-                .authenticationProvider(mobileProvider)
-                .userDetailsService(mobileLoginService)
+                .userDetailsService(userLoginService)
                 .passwordEncoder(passwordEncoder)
     }
 
@@ -113,12 +122,8 @@ class UserLoginService(
 
     private val log = LoggerFactory.getLogger(UserLoginService::class.java)
 
-    override fun loadUserByUsername(username: String): UserDetails {
+    override fun loadUserByUsername(username: String): UserDetails? {
         log.info("通过 UserLoginService 提供认证身份, username : $username")
-        val user = userRepo.findByName(username)
-        if (user != null) {
-            return user
-        }
-        throw RuntimeException("用户名或密码错误")
+        return userRepo.findByName(username)
     }
 }

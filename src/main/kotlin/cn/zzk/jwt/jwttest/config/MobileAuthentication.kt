@@ -4,15 +4,11 @@ import cn.zzk.jwt.jwttest.domain.User
 import org.slf4j.LoggerFactory
 import org.springframework.security.authentication.AbstractAuthenticationToken
 import org.springframework.security.authentication.AuthenticationProvider
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.GrantedAuthority
-import org.springframework.security.core.userdetails.UserDetails
-import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.stereotype.Component
-import org.springframework.stereotype.Service
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -28,13 +24,12 @@ class MobileAuthenticationProvider : AuthenticationProvider {
         val password = "1"
 
         val user = User(username = username, password = password)
-        log.info("自定义认证提供商提供了认证.......")
+        log.info("MobileAuthenticationProvider 提供认证逻辑处理.......")
         return MobileLoginAuthenticationToken(user, emptyList())
     }
 
     override fun supports(authentication: Class<*>): Boolean {
-
-        return MobileLoginAuthenticationFilter::class.java.isAssignableFrom(authentication)
+        return MobileLoginAuthenticationToken::class.java.isAssignableFrom(authentication)
     }
 }
 
@@ -73,10 +68,8 @@ class MobileLoginAuthenticationFilter : AbstractAuthenticationProcessingFilter {
 
     private val mobileParamName: String
 
-    constructor(mobileLoginUrl: String,
-                mobileParamName: String,
-                httpMethod: String)
-            : super(AntPathRequestMatcher(mobileLoginUrl, httpMethod)) {
+    constructor(mobileLoginUrl: String, mobileParamName: String)
+            : super(AntPathRequestMatcher(mobileLoginUrl, "POST")) {
         this.mobileParamName = mobileParamName
     }
 
@@ -85,22 +78,11 @@ class MobileLoginAuthenticationFilter : AbstractAuthenticationProcessingFilter {
         val phone = request.getParameter(mobileParamName)
         val details = authenticationDetailsSource.buildDetails(request)
 
-        log.info("自定义拦截器拦截, phone : $phone")
+        log.info("MobileLoginAuthenticationFilter 进行拦截认证, phone : $phone")
 
         val authRequest = MobileLoginAuthenticationToken(phone)
         authRequest.details = details
+        authRequest.isAuthenticated = true
         return this.authenticationManager.authenticate(authRequest)
-    }
-}
-
-@Service
-class MobileLoginService : UserDetailsService {
-
-    private val log = LoggerFactory.getLogger(MobileLoginService::class.java)
-
-    override fun loadUserByUsername(mobile: String?): UserDetails {
-        log.info("通过 MobileLoginService 提供认证身份, mobile : $mobile")
-        if (mobile == null) throw RuntimeException("mobile 不能为 null")
-        return User(username = mobile, password = mobile)
     }
 }
