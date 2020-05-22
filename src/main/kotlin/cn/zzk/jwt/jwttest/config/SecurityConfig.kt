@@ -5,11 +5,14 @@ import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
+import org.springframework.context.event.EventListener
+import org.springframework.security.authentication.event.AuthenticationSuccessEvent
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
@@ -17,6 +20,7 @@ import org.springframework.security.crypto.password.DelegatingPasswordEncoder
 import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
+import org.springframework.security.web.authentication.WebAuthenticationDetails
 import org.springframework.stereotype.Service
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -80,7 +84,7 @@ class SecurityConfig(
         filter.setAuthenticationFailureHandler(authenticationFailureHandler)
         filter.setAuthenticationManager(this.authenticationManager())
         http
-                .addFilterBefore(filter,UsernamePasswordAuthenticationFilter::class.java)
+                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
     }
 
 
@@ -126,4 +130,14 @@ class UserLoginService(
         log.info("通过 UserLoginService 提供认证身份, username : $username")
         return userRepo.findByName(username)
     }
+
+    @EventListener
+    fun whenever(success: AuthenticationSuccessEvent) {
+        val authentication = success.source as Authentication
+        if (authentication.details is WebAuthenticationDetails) {
+            val details = authentication.details as WebAuthenticationDetails
+            log.info("有用户登录成功 , 账号 : ${authentication.name}, ip : ${details.remoteAddress}")
+        }
+    }
+
 }
