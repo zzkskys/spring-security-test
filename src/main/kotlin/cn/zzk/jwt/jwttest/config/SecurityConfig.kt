@@ -5,7 +5,6 @@ import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.context.annotation.Bean
-import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -79,9 +78,9 @@ class SecurityConfig(
         val filter = MobileLoginAuthenticationFilter("/mobile/login", "mobile")
         filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler)
         filter.setAuthenticationFailureHandler(authenticationFailureHandler)
-        filter.setAuthenticationManager(ProviderManager(listOf(mobileProvider)))
+        filter.setAuthenticationManager(this.authenticationManager())
         http
-                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
+                .addFilterBefore(filter,UsernamePasswordAuthenticationFilter::class.java)
     }
 
 
@@ -96,6 +95,7 @@ class SecurityConfig(
 
     override fun configure(auth: AuthenticationManagerBuilder) {
         auth
+                .authenticationProvider(mobileProvider)
                 .userDetailsService(userLoginService)
                 .passwordEncoder(passwordEncoder)
     }
