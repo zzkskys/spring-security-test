@@ -21,6 +21,7 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.authentication.WebAuthenticationDetails
+import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter
 import org.springframework.stereotype.Service
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -51,6 +52,17 @@ class SecurityConfig(
 
     @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
+
+    @Autowired
+    private lateinit var validateCodeFilter: ValidateCodeFilter
+
+    @Bean
+    fun passwordEncoder(): PasswordEncoder {
+        val encoder: DelegatingPasswordEncoder = PasswordEncoderFactories
+                .createDelegatingPasswordEncoder() as DelegatingPasswordEncoder
+        encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
+        return encoder
+    }
 
 
     override fun configure(http: HttpSecurity) {
@@ -84,16 +96,8 @@ class SecurityConfig(
         filter.setAuthenticationFailureHandler(authenticationFailureHandler)
         filter.setAuthenticationManager(this.authenticationManager())
         http
+                .addFilterBefore(validateCodeFilter, AbstractPreAuthenticatedProcessingFilter::class.java)
                 .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
-    }
-
-
-    @Bean
-    fun passwordEncoder(): PasswordEncoder {
-        val encoder: DelegatingPasswordEncoder = PasswordEncoderFactories
-                .createDelegatingPasswordEncoder() as DelegatingPasswordEncoder
-        encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
-        return encoder
     }
 
 

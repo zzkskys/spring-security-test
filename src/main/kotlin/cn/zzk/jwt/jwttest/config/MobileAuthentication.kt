@@ -9,6 +9,8 @@ import org.springframework.security.core.GrantedAuthority
 import org.springframework.security.web.authentication.AbstractAuthenticationProcessingFilter
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher
 import org.springframework.stereotype.Component
+import org.springframework.web.filter.OncePerRequestFilter
+import javax.servlet.FilterChain
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 
@@ -18,8 +20,9 @@ class MobileAuthenticationProvider : AuthenticationProvider {
 
     private val log = LoggerFactory.getLogger(MobileAuthenticationProvider::class.java)
 
-    override fun authenticate(authentication: Authentication): Authentication {
+    override fun authenticate(authentication: Authentication): Authentication? {
         authentication as MobileLoginAuthenticationToken
+
         val username = authentication.principal as String
         val password = "1"
 
@@ -62,16 +65,12 @@ class MobileLoginAuthenticationToken : AbstractAuthenticationToken {
     }
 }
 
-class MobileLoginAuthenticationFilter : AbstractAuthenticationProcessingFilter {
+class MobileLoginAuthenticationFilter(
+        mobileLoginUrl: String,
+        private val mobileParamName: String
+) : AbstractAuthenticationProcessingFilter(AntPathRequestMatcher(mobileLoginUrl, "POST")) {
 
     private val log = LoggerFactory.getLogger(MobileLoginAuthenticationFilter::class.java)
-
-    private val mobileParamName: String
-
-    constructor(mobileLoginUrl: String, mobileParamName: String)
-            : super(AntPathRequestMatcher(mobileLoginUrl, "POST")) {
-        this.mobileParamName = mobileParamName
-    }
 
     override fun attemptAuthentication(request: HttpServletRequest, response: HttpServletResponse): Authentication {
 
@@ -85,4 +84,22 @@ class MobileLoginAuthenticationFilter : AbstractAuthenticationProcessingFilter {
         authRequest.isAuthenticated = true
         return this.authenticationManager.authenticate(authRequest)
     }
+}
+
+@Component
+class ValidateCodeFilter : OncePerRequestFilter() {
+
+    private val log = LoggerFactory.getLogger(ValidateCodeFilter::class.java)
+
+    //若附带了 code 则继续认证
+    override fun doFilterInternal(request: HttpServletRequest, response: HttpServletResponse, filterChain: FilterChain) {
+        val phone = request.getParameter("mobile")
+        val code = request.getParameter("code")
+        if (code != null) {
+            filterChain.doFilter(request, response)
+        } else {
+            log.info("为 phone : $phone 发送验证码")
+        }
+    }
+
 }
