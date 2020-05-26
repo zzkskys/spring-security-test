@@ -89,7 +89,6 @@ class SecurityConfig(
                     logout.logoutSuccessHandler(simpleLogoutHandler)
                 }
 
-
         // mobile 登录认证
         val filter = MobileLoginAuthenticationFilter("/mobile/login", "mobile")
         filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler)
