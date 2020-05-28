@@ -16,7 +16,7 @@ class Shell(
     @Bean
     fun userInit() = CommandLineRunner {
         val users = listOf(
-                User(username = "a", password = "1"),
+                User(username = "a", password = "1").apply { id = "1" },
                 User(username = "b", password = "2"),
                 User(username = "c", password = "3")
         )

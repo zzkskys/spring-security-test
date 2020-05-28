@@ -1,14 +1,13 @@
 package cn.zzk.jwt.jwttest.controllers
 
+import cn.zzk.jwt.jwttest.domain.User
 import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.springframework.security.access.PermissionEvaluator
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Component
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.*
 import java.io.Serializable
 
 @RestController
@@ -18,7 +17,6 @@ class UserController(
 ) {
     @GetMapping
     fun users() = userRepo.findAll()
-
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/2")
@@ -35,6 +33,11 @@ class UserController(
     @PreAuthorize("@permission.hasPermission(authentication,#age)")
     @GetMapping("/5")
     fun users5(@RequestParam(defaultValue = "5") age: Int) = userRepo.findAll()
+
+
+    @PutMapping("/6")
+    @PreAuthorize("isAuthenticated()")
+    fun users6(@AuthenticationPrincipal user: User?) = user
 }
 
 @Component

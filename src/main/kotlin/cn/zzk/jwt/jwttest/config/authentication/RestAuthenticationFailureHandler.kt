@@ -3,7 +3,7 @@ package cn.zzk.jwt.jwttest.config.authentication
 import com.fasterxml.jackson.databind.ObjectMapper
 import org.springframework.http.MediaType
 import org.springframework.security.core.AuthenticationException
-import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler
+import org.springframework.security.web.authentication.AuthenticationFailureHandler
 import org.springframework.stereotype.Component
 import java.io.IOException
 import javax.servlet.ServletException
@@ -18,7 +18,7 @@ import javax.servlet.http.HttpServletResponse
 @Component
 class RestAuthenticationFailureHandler(
         private val objectMapper: ObjectMapper
-) : SimpleUrlAuthenticationFailureHandler() {
+) : AuthenticationFailureHandler {
 
     @Throws(IOException::class, ServletException::class)
     override fun onAuthenticationFailure(request: HttpServletRequest, response: HttpServletResponse, exception: AuthenticationException) {

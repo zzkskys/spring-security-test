@@ -1,6 +1,11 @@
 package cn.zzk.jwt.jwttest.config
 
-import cn.zzk.jwt.jwttest.config.authentication.*
+import cn.zzk.jwt.jwttest.config.authentication.RestAccessDeniedHandler
+import cn.zzk.jwt.jwttest.config.authentication.RestAuthenticationEntryPoint
+import cn.zzk.jwt.jwttest.config.authentication.RestAuthenticationFailureHandler
+import cn.zzk.jwt.jwttest.config.authentication.RestLogoutHandler
+import cn.zzk.jwt.jwttest.config.jwt.JwtAuthenticationSuccessHandler
+import cn.zzk.jwt.jwttest.config.jwt.JwtFilter
 import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.slf4j.LoggerFactory
 import org.springframework.beans.factory.annotation.Autowired
@@ -12,6 +17,7 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
+import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.core.Authentication
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
@@ -21,7 +27,6 @@ import org.springframework.security.crypto.password.NoOpPasswordEncoder
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 import org.springframework.security.web.authentication.WebAuthenticationDetails
-import org.springframework.security.web.authentication.preauth.AbstractPreAuthenticatedProcessingFilter
 import org.springframework.stereotype.Service
 import org.springframework.web.cors.CorsConfiguration
 import org.springframework.web.cors.CorsConfigurationSource
@@ -38,23 +43,18 @@ import java.util.Collections.singletonList
 @EnableGlobalMethodSecurity(prePostEnabled = true)
 class SecurityConfig(
         private val restAuthenticationEntryPoint: RestAuthenticationEntryPoint,
-        private val restAuthenticationSuccessHandler: RestAuthenticationSuccessHandler,
+        private val jwtAuthenticationSuccessHandler: JwtAuthenticationSuccessHandler,
         private val authenticationFailureHandler: RestAuthenticationFailureHandler,
         private val simpleLogoutHandler: RestLogoutHandler,
-        private val restAccessDeniedHandler: RestAccessDeniedHandler
+        private val restAccessDeniedHandler: RestAccessDeniedHandler,
+        private val userLoginService: UserLoginService
 ) : WebSecurityConfigurerAdapter() {
-
-    @Autowired
-    private lateinit var userLoginService: UserLoginService
-
-    @Autowired
-    private lateinit var mobileProvider: MobileAuthenticationProvider
 
     @Autowired
     private lateinit var passwordEncoder: PasswordEncoder
 
     @Autowired
-    private lateinit var validateCodeFilter: ValidateCodeFilter
+    private lateinit var jwtFilter: JwtFilter
 
     @Bean
     fun passwordEncoder(): PasswordEncoder {
@@ -63,7 +63,6 @@ class SecurityConfig(
         encoder.setDefaultPasswordEncoderForMatches(NoOpPasswordEncoder.getInstance())
         return encoder
     }
-
 
     override fun configure(http: HttpSecurity) {
         http
@@ -77,32 +76,25 @@ class SecurityConfig(
                     exceptionHandling.accessDeniedHandler(restAccessDeniedHandler)
                 }
                 .authorizeRequests {
-                    it.antMatchers("/public/**", "/login").permitAll()
                     it.antMatchers("/**").permitAll()
                 }
                 .formLogin { formLogin ->
                     formLogin.loginProcessingUrl("/login")
-                    formLogin.successHandler(restAuthenticationSuccessHandler)
+                    formLogin.successHandler(jwtAuthenticationSuccessHandler)
                     formLogin.failureHandler(authenticationFailureHandler)
                 }
                 .logout { logout ->
                     logout.logoutSuccessHandler(simpleLogoutHandler)
+                    logout.invalidateHttpSession(true)
                 }
+                //因为使用 jwt 认证，则无需使用 session
+                .sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS)
 
-        // mobile 登录认证
-        val filter = MobileLoginAuthenticationFilter("/mobile/login", "mobile")
-        filter.setAuthenticationSuccessHandler(restAuthenticationSuccessHandler)
-        filter.setAuthenticationFailureHandler(authenticationFailureHandler)
-        filter.setAuthenticationManager(this.authenticationManager())
-        http
-                .addFilterBefore(validateCodeFilter, AbstractPreAuthenticatedProcessingFilter::class.java)
-                .addFilterBefore(filter, UsernamePasswordAuthenticationFilter::class.java)
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter::class.java)
     }
-
 
     override fun configure(auth: AuthenticationManagerBuilder) {
         auth
-                .authenticationProvider(mobileProvider)
                 .userDetailsService(userLoginService)
                 .passwordEncoder(passwordEncoder)
     }
@@ -121,6 +113,7 @@ class SecurityConfig(
         return source
     }
 }
+
 
 @Service
 class UserLoginService(

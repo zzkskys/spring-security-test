@@ -13,7 +13,7 @@ import javax.persistence.Id
 class User(
         @Id
         @Column(length = 36)
-        val id: String = UUID.randomUUID().toString(),
+        var id: String = UUID.randomUUID().toString(),
 
         private val username: String,
 
