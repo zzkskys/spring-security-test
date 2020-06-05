@@ -4,13 +4,17 @@ import cn.zzk.jwt.jwttest.config.authentication.*
 import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Primary
+import org.springframework.security.authentication.AuthenticationManager
+import org.springframework.security.authentication.ProviderManager
 import org.springframework.security.config.annotation.authentication.builders.AuthenticationManagerBuilder
 import org.springframework.security.config.annotation.method.configuration.EnableGlobalMethodSecurity
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
+import org.springframework.security.config.annotation.web.builders.WebSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter
 import org.springframework.security.core.userdetails.UserDetails
 import org.springframework.security.core.userdetails.UserDetailsService
+import org.springframework.security.core.userdetails.UsernameNotFoundException
 import org.springframework.security.crypto.factory.PasswordEncoderFactories
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
@@ -36,7 +40,6 @@ class SecurityConfig(
         private val userDetailsService: UserDetailsService
 ) : WebSecurityConfigurerAdapter() {
 
-
     override fun configure(http: HttpSecurity) {
         http
                 .cors { it.configurationSource(corsConfigurationSource()) }
@@ -49,11 +52,10 @@ class SecurityConfig(
                     exceptionHandling.accessDeniedHandler(restAccessDeniedHandler)
                 }
                 .authorizeRequests {
-                    it.antMatchers("/public/**", "/login").permitAll()
                     it.antMatchers("/**").permitAll()
                 }
                 .formLogin { formLogin ->
-                    formLogin.loginPage("/login")
+                    formLogin.loginProcessingUrl("/login")
                     formLogin.successHandler(restAuthenticationSuccessHandler)
                     formLogin.failureHandler(authenticationFailureHandler)
                 }
@@ -62,13 +64,19 @@ class SecurityConfig(
                 }
     }
 
+
+    override fun authenticationManager(): AuthenticationManager {
+        val manager = super.authenticationManager() as ProviderManager
+        println(manager.providers)
+        return manager
+    }
+
     @Bean
     fun passwordEncoder(): PasswordEncoder {
         return PasswordEncoderFactories
                 .createDelegatingPasswordEncoder()
     }
 
-    @Throws(Exception::class)
     override fun configure(auth: AuthenticationManagerBuilder) {
         auth
                 .userDetailsService(userDetailsService)
@@ -87,18 +95,19 @@ class SecurityConfig(
         source.registerCorsConfiguration("/**", configuration)
         return source
     }
+
 }
+
 
 @Service
 @Primary
 class UserLoginService(
         private val userRepo: UserRepo
 ) : UserDetailsService {
+
     override fun loadUserByUsername(username: String): UserDetails {
-        val user = userRepo.findByName(username)
-        if (user != null) {
-            return user
-        }
-        throw RuntimeException("用户名或密码错误")
+        return userRepo.findByName(username)
+                ?: throw UsernameNotFoundException("用户名或密码错误")
     }
 }
+
