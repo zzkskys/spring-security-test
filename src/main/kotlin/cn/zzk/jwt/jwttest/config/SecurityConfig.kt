@@ -42,7 +42,7 @@ class SecurityConfig(
 
     override fun configure(http: HttpSecurity) {
         http
-                .cors { it.configurationSource(corsConfigurationSource()) }
+//                .cors { it.configurationSource(corsConfigurationSource()) }
                 .csrf().disable()
                 .headers {
                     it.frameOptions().disable()
@@ -83,18 +83,18 @@ class SecurityConfig(
                 .passwordEncoder(passwordEncoder())
     }
 
-    @Bean
-    fun corsConfigurationSource(): CorsConfigurationSource {
-        val configuration = CorsConfiguration()
-        configuration.allowedOrigins = singletonList("*")
-        configuration.allowedMethods = singletonList("*")
-        configuration.allowedHeaders = singletonList("*")
-        configuration.allowCredentials = true
-        configuration.addExposedHeader("X-Auth-Token")
-        val source = UrlBasedCorsConfigurationSource()
-        source.registerCorsConfiguration("/**", configuration)
-        return source
-    }
+//    @Bean
+//    fun corsConfigurationSource(): CorsConfigurationSource {
+//        val configuration = CorsConfiguration()
+//        configuration.allowedOrigins = singletonList("*")
+//        configuration.allowedMethods = singletonList("*")
+//        configuration.allowedHeaders = singletonList("*")
+//        configuration.allowCredentials = true
+//        configuration.addExposedHeader("X-Auth-Token")
+//        val source = UrlBasedCorsConfigurationSource()
+//        source.registerCorsConfiguration("/**", configuration)
+//        return source
+//    }
 
 }
 

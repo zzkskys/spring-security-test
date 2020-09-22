@@ -3,6 +3,7 @@ package cn.zzk.jwt.jwttest.domain
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.security.core.GrantedAuthority
+import org.springframework.security.core.authority.SimpleGrantedAuthority
 import org.springframework.security.core.userdetails.UserDetails
 import java.util.*
 import javax.persistence.Column
@@ -20,7 +21,7 @@ class User(
         private var password: String
 ) : UserDetails {
 
-    override fun getAuthorities(): MutableList<GrantedAuthority> = mutableListOf()
+    override fun getAuthorities(): MutableList<GrantedAuthority> = mutableListOf(SimpleGrantedAuthority("ADMIN"),SimpleGrantedAuthority("USER"))
 
     override fun isEnabled(): Boolean = true
 

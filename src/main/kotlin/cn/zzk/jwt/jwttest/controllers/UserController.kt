@@ -1,9 +1,11 @@
 package cn.zzk.jwt.jwttest.controllers
 
+import cn.zzk.jwt.jwttest.domain.User
 import cn.zzk.jwt.jwttest.domain.UserRepo
 import org.springframework.security.access.PermissionEvaluator
 import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.security.core.Authentication
+import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.stereotype.Component
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -19,6 +21,8 @@ class UserController(
     @GetMapping
     fun users() = userRepo.findAll()
 
+    @GetMapping("/current")
+    fun users(@AuthenticationPrincipal user:User) = user
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/2")
