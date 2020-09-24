@@ -16,9 +16,9 @@ class Shell(
     @Bean
     fun userInit() = CommandLineRunner {
         val users = listOf(
-                User(username = "a", password = "1"),
-                User(username = "b", password = "2"),
-                User(username = "c", password = "3")
+                User( "a",  "1"),
+                User( "b",  "2"),
+                User( "c",  "3")
         )
         users.forEach {
             val securityPassword = passwordEncoder.encode(it.password)

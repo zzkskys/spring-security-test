@@ -22,7 +22,7 @@ class UserController(
     fun users() = userRepo.findAll()
 
     @GetMapping("/current")
-    fun users(@AuthenticationPrincipal user:User) = user
+    fun users(@AuthenticationPrincipal user: User) = user
 
     @PreAuthorize("isAuthenticated()")
     @GetMapping("/2")

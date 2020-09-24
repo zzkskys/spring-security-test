@@ -35,9 +35,9 @@ internal class UserControllerTest(
     @BeforeEach
     fun setUp() {
         val users = listOf(
-                User(username = "张三", password = "a"),
-                User(username = "李四", password = "b"),
-                User(username = "王五", password = "c")
+                User( "张三",  "a"),
+                User( "李四",  "b"),
+                User( "王五",  "c")
         )
         whenever(userRepo.findAll()) doReturn users
     }
